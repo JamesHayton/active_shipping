@@ -15,8 +15,8 @@ module ActiveMerchant
       RESOURCES = {
         :rates 						=> 'ups.app/xml/Rate',
         :track 						=> 'ups.app/xml/Track', 
-        :ship_confirm 		=> 'ups.app/xml/ShipConfirm',
-        :ship_accept			=> 'ups.app/xml/ShipAccept',
+        :shipment_confirm => 'ups.app/xml/ShipConfirm',
+        :shipment_accept	=> 'ups.app/xml/ShipAccept',
         :time_in_transit	=> 'ups.app/xml/TimeInTransit',
         :void							=> 'ups.app/xml/Void'
       }
@@ -122,7 +122,7 @@ module ActiveMerchant
         packages = Array(packages)
         access_request = "<?xml version='1.0' ?>" + build_access_request
         confirmation_request = "<?xml version='1.0' encoding='UTF-8' ?>" + build_confirmation_request(carrier_service, packages, label_specification, options)
-        response = commit(:ship_confirm, save_request(access_request + confirmation_request), (options[:test] || false))
+        response = commit(:shipment_confirm, save_request(access_request + confirmation_request), (options[:test] || false))
         parse_shipment_confirm_response(response, options)
       end
 
@@ -130,7 +130,7 @@ module ActiveMerchant
         options = @options.merge(options)
         access_request = "<?xml version='1.0' ?>" + build_access_request
         acceptance_request = "<?xml version='1.0' encoding='UTF-8' ?>" + build_shipment_acceptance_request(digest, options)
-        response = commit(:ship_accept, save_request(access_request + acceptance_request), (options[:test] || false))
+        response = commit(:shipment_accept, save_request(access_request + acceptance_request), (options[:test] || false))
         parse_shipment_accept_response(response, options)
       end
       
