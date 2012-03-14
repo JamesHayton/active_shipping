@@ -447,6 +447,93 @@ module ActiveMerchant
         end
         RateResponse.new(success, message, Hash.from_xml(response).values.first, :rates => rate_estimates, :xml => response, :request => last_request)
       end
+
+      def parse_shipment_confirm_response(response, options = {})
+        xml = REXML::Document.new(response)
+        success = response_success?(xml)
+        message = response_message(xml)
+        if success
+          root_node = xml.elements['ShipmentConfirmResponse']
+          identification_number = root_node.get_text('ShipmentIdentificationNumber').to_s
+          total_price = root_node.get_text('TotalCharges/MonetaryValue').to_s.to_f
+          currency = root_node.get_text('TotalCharges/CurrencyCode').to_s
+          digest = root_node.get_text('ShipmentDigest').to_s
+        end
+        ShipmentConfirmResponse.new(success, message, Hash.from_xml(response).values.first,
+          :xml => response,
+          :request => last_request,
+          :identification_number => identification_number,
+          :total_price => total_price,
+          :currency => currency,
+          :digest => digest
+          )
+      end
+
+      def parse_shipment_accept_response(response, options = {})
+        xml = REXML::Document.new(response)
+        success = response_success?(xml)
+        message = response_message(xml)
+        if success
+          @shipment_packages = []
+          xml.elements.each('/*/*/PackageResults') do |package_result|
+            tracking_number = package_result.get_text('TrackingNumber').to_s
+            service_option_charges = package_result.get_text('ServiceOptionsCharges/MonetaryValue').to_s.to_f
+            service_option_charges_currency = package_result.get_text('ServiceOptionsCharges/CurrencyCode').to_s
+            label_image_format = package_result.get_text('LabelImage/LabelImageFormat/Code').to_s
+            graphic_image = package_result.get_text('LabelImage/GraphicImage').to_s
+            html_image = package_result.get_text('LabelImage/HTMLImage').to_s
+            @shipment_packages << ShipmentPackage.new(tracking_number, label_image_format, graphic_image, html_image, {:service_option_charges => service_option_charges, :currency_code => service_option_charges_currency})
+          end
+          root_node = xml.elements['ShipmentAcceptResponse/ShipmentResults']
+          identification_number = root_node.get_text('ShipmentIdentificationNumber').to_s
+          shipment_charges = root_node.get_text('ShipmentCharges/TotalCharges/MonetaryValue').to_s.to_f
+          currency_code = root_node.get_text('ShipmentCharges/TotalCharges/CurrencyCode').to_s
+          billing_weight = root_node.get_text('BillingWeight/Weight').to_s.to_f
+          weight_unit = root_node.get_text('BillingWeight/UnitOfMeasurement/Code').to_s
+          high_value_report_node = root_node.elements['ControlLogReceipt']
+          if high_value_report_node
+            high_value_report_image = high_value_report_node.get_text('GraphicImage').to_s
+            high_value_report_image_format = high_value_report_node.get_text('ImageFormat/Code').to_s
+          end
+        end
+        ShipmentAcceptResponse.new(success, message, Hash.from_xml(response).values.first,
+          :xml => response,
+          :request => last_request,
+          :identification_number => identification_number,
+          :shipment_charges => shipment_charges,
+          :currency_code => currency_code,
+          :billing_weight => billing_weight,
+          :weight_unit => weight_unit,
+          :high_value_report_image => high_value_report_image,
+          :high_value_report_image_format => high_value_report_image_format,
+          :shipment_packages => @shipment_packages
+          )
+      end
+      
+      def parse_void_response(response, options = {})
+        xml = REXML::Document.new(response)
+        success = response_success?(xml)
+        message = response_message(xml)
+        if success
+          @package_level_results = []
+          xml.elements.each('/*/PackageLevelResults') do |package_level_result|
+            tracking_number = package_level_result.get_text('TrackingNumber').to_s
+            status_code = package_level_result.get_text('StatusCode').to_s.to_f
+            description = package_level_result.get_text('Description').to_s
+            @package_level_results << VoidResult.new(tracking_number, status_code, description)
+          end
+          status_node = xml.elements['VoidShipmentResponse/Status']
+          status_type = status_node.get_text('StatusType/Code').to_s
+          status_code = status_node.get_text('StatusCode/Code').to_s
+        end
+        VoidShipmentResponse.new(success, message, Hash.from_xml(response).values.first,
+          :xml => response,
+          :request => last_request,
+          :package_level_results => @package_level_results,
+          :status_type => status_type,
+          :status_code => status_code
+          )
+      end
       
       def parse_tracking_response(response, options={})
         xml = REXML::Document.new(response)
@@ -519,6 +606,18 @@ module ActiveMerchant
                 :address2 =>    node_text_or_nil(address.elements['AddressLine2']),
                 :address3 =>    node_text_or_nil(address.elements['AddressLine3'])
               )
+      end
+
+      def parse_ups_datetime(options = {})
+        time, date = options[:time].to_s, options[:date].to_s
+        if time.nil?
+          hour, minute, second = 0
+        else
+          hour, minute, second = time.scan(/\d{2}/)
+        end
+        year, month, day = date[0..3], date[4..5], date[6..7]
+
+        Time.utc(year, month, day, hour, minute, second)
       end
       
       def response_success?(xml)
