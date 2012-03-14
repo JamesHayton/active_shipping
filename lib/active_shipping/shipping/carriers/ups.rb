@@ -123,7 +123,7 @@ module ActiveMerchant
         access_request = "<?xml version='1.0' ?>" + build_access_request
         confirmation_request = "<?xml version='1.0' encoding='UTF-8' ?>" + build_confirmation_request(carrier_service, packages, label_specification, options)
         response = commit(:shipment_confirm, save_request(access_request + confirmation_request), (options[:test] || false))
-        #parse_shipment_confirm_response(response, options)
+        parse_shipment_confirm_response(response, options)
       end
 
       def shipment_accept_request(digest, options = {})
