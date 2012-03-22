@@ -13,7 +13,7 @@ module ActiveMerchant #:nodoc:
         @digest = options[:digest]
         @total_price = options[:total_price]
         @currency = options[:currency]
-        super
+        #super
       end
       
     end

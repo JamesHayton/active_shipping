@@ -8,7 +8,7 @@ module ActiveMerchant
       cattr_accessor :default_options
       cattr_reader :name
       @@name = "UPS"
-      
+
       TEST_URL = 'https://wwwcie.ups.com'
       LIVE_URL = 'https://onlinetools.ups.com'
       
